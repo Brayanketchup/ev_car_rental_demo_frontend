@@ -1,0 +1,110 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Manrope", sans-serif;
+  scroll-behavior: smooth;
+}
+
+
+/* Start of Scroll bar styles */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #fe5d3b #ffffff;
+}
+
+/* Chrome, Edge and Safari */
+*::-webkit-scrollbar {
+  width: 10px;
+  width: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  border-radius: 5px;
+  background-color: #ffffff;
+}
+
+*::-webkit-scrollbar-track:hover {
+  background-color: #ffffff;
+}
+
+*::-webkit-scrollbar-track:active {
+  background-color: #ffffff;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 20px;
+  background-color: #fe5d3b;
+}
+
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #C2410C;
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background-color: #fe5d3b;
+}
+
+/* END of Scroll bar styles */
+
+
+/* START: Hero styles */
+.hero {
+  @apply flex xl:flex-row flex-col gap-5 relative z-0 max-w-[1440px];
+}
+
+.hero-img {
+  @apply relative hidden xl:block w-full h-full z-0;
+}
+
+/* END: Hero styles */
+
+
+/* Button Styles */
+
+.square-button {
+  @apply border border-transparent shadow-sm cursor-pointer rounded-md bg-primary-color text-base font-medium text-white hover:bg-orange-700 transition-colors focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm
+}
+
+.round-button {
+  @apply flex flex-row relative justify-center items-center py-3 px-6 outline-none rounded-full
+}
+
+.button-shodow {
+  @apply hover:shadow-[0_10px_15px_0_rgba(255,83,48,0.35)] transition-shadow duration-700;
+
+}
+
+.button-color-transition {
+
+  @apply hover:text-primary-color duration-500 transition-colors;
+
+}
+
+.divice-navbar {
+ @apply flex-col-reverse h-full absolute right-0;
+
+}
+/* END: Button Styles */
+
+/* Text Styles */
+
+.tittle-style {
+  @apply 2xl:text-[50px] sm:text-[40px] text-[30px] font-extrabold
+}
+
+.subtitle-style {
+  @apply text-xl font-extrabold py-3
+}
+
+/* End Text Styles */
+
