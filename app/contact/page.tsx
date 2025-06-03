@@ -23,7 +23,7 @@ export default function contact() {
     }
 
     try {
-      const response = await axios.post('http://localhost:5000/api/tickets/create', {
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/tickets/create`, {
         description,
         user_id: userId,
       });

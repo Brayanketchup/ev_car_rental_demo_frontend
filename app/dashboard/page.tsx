@@ -41,9 +41,9 @@ const page = () => {
             }
         }
         try {
-            const response = await fetch('http://localhost:5000/api/cars/add', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/cars/add`, {
                 method: 'POST',
-                body: formData, // sending as FormData
+                body: formData, 
             });
             if (response.ok) {
                 alert('Car added successfully!');

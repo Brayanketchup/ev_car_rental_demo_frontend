@@ -44,7 +44,7 @@ export default function Home() {
     setIsLoading(true);
     setError('');
     try {
-      const { data } = await axios.get('http://localhost:5000/api/cars/search', {
+      const { data } = await axios.get(`${process.env.API_BASE_URL}/api/cars/search`, {
         params: searchParams
       });
       setCarResults(data);

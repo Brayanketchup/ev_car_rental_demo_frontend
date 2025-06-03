@@ -18,7 +18,7 @@ const Page = () => {
 
     const fetchTickets = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/getalltickets');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/getalltickets`);
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
@@ -32,7 +32,7 @@ const Page = () => {
 
     const setTicketToDone = async (ticketID: number): Promise<void> => {
         try {
-            const response = await fetch(`http://localhost:5000/api/ticketdone/${ticketID}`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ticketdone/${ticketID}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

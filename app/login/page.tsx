@@ -5,22 +5,25 @@ import { useState } from 'react';
 import axios, { AxiosError } from 'axios';  // Ensure AxiosError is imported from axios
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import 'dotenv/config';
 
 const LoginPage = () => {
     const [identifier, setIdentifier] = useState<string>('');  // This can be either username or email
     const [password, setPassword] = useState<string>('');
     const [message, setMessage] = useState<string>('');
     const router = useRouter();
+    const url = process.env.NEXT_PUBLIC_API_BASE_URL;  // Ensure this is set correctly in your environment variables
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        console.log('attempt', process.env.NEXT_PUBLIC_API_BASE_URL, '/api/login/')
         try {
-            const response = await axios.post('http://localhost:5000/api/login', {
-                identifier,  // Changed from email to identifier
+            const response = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/login/`, {
+                identifier,  
                 password,
             }, {
-                withCredentials: true  // Assuming you are handling sessions
+                withCredentials: true  
             });
 
             if (response.status === 200) {

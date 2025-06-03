@@ -57,7 +57,7 @@ const Page = () => {
         e.preventDefault();
         console.log('formValues', formValues)
         try {
-            const response = await fetch('http://localhost:5000/api/cars/update', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/cars/update`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -84,7 +84,7 @@ const Page = () => {
     const fetchCars = async () => {
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:5000/api/cars/getallcars');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/cars/getallcars`);
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
@@ -113,8 +113,8 @@ const Page = () => {
                 throw new Error('Car ID is required');
             }
 
-            const response = await fetch(`http://localhost:5000/api/car/setmaintenance/${carID}`, {
-                method: 'POST', // Assuming this is a POST request; adjust if needed
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/car/setmaintenance/${carID}`, {
+                method: 'POST', 
                 headers: {
                     'Content-Type': 'application/json',
                 },

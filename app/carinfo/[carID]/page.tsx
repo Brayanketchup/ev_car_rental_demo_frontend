@@ -70,7 +70,7 @@ const Page = () => {
             const fetchCar = async () => {
                 try {
                     setLoading(true);
-                    const response = await axios.get<ICar>(`http://localhost:5000/api/cars/${carID}`);
+                    const response = await axios.get<ICar>(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/cars/${carID}`);
                     setCar({
                         ...response.data,
                         image: response.data.image
@@ -79,7 +79,7 @@ const Page = () => {
                     });
 
                     // Fetch reviews for the car
-                    const reviewsResponse = await axios.get<IReview[]>(`http://localhost:5000/api/customer-reviews/${carID}`);
+                    const reviewsResponse = await axios.get<IReview[]>(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/customer-reviews/${carID}`);
                     setReviews(reviewsResponse.data); // Assuming setReviews is defined
 
                 } catch (err) {
@@ -96,7 +96,7 @@ const Page = () => {
     const handleBooking = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
-        const today = new Date().toISOString().split("T")[0]; // Current date in YYYY-MM-DD format
+        const today = new Date().toISOString().split("T")[0]; 
 
         if (tripStart <= today) {
             alert("The start date must be a future date.");
@@ -117,7 +117,7 @@ const Page = () => {
                 pickupReturnLocation,
             };
 
-            const response = await axios.post('http://localhost:5000/api/bookings', bookingData);
+            const response = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bookings`, bookingData);
 
             if (response.status === 201) {
                 alert("Booking successful!");

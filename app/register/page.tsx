@@ -20,7 +20,7 @@ const RegisterPage = () => {
         e.preventDefault();
 
         try {
-            const response = await axios.post('http://localhost:5000/api/register', {
+            const response = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/register`, {
                 username,
                 firstName,
                 lastName,

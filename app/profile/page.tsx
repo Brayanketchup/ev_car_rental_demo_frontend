@@ -24,7 +24,7 @@ const page = () => {
     useEffect(() => {
         const fetchUserInfo = async () => {
             try {
-                const response = await axios.get(`http://localhost:5000/api/users/${user_id}`);
+                const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${user_id}`);
                 setUserInfo(response.data);
             } catch (err) {
                 console.error('Failed to fetch user information:', err);
@@ -58,7 +58,7 @@ const page = () => {
         }
 
         try {
-            const response = await axios.put('http://localhost:5000/api/users/update', {
+            const response = await axios.put(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/update`, {
                 ...updateInfo,
                 user_id, // Include user ID in the payload
             });
@@ -85,7 +85,7 @@ const page = () => {
         }
 
         try {
-            const response = await axios.put('http://localhost:5000/api/users/change-password', {
+            const response = await axios.put(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/change-password`, {
                 ...passwords,
                 user_id, // Include user ID in the payload
             });
