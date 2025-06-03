@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Banner, ContactForm, ContactInfo, Navbar } from '@/components'
 import { useEffect } from 'react';
-// import { useRouter } from 'next/router'
 import axios from 'axios';
 
 export default function contact() {
@@ -30,7 +29,7 @@ export default function contact() {
       });
 
       alert(response.data.message);
-      setDescription(''); // Clear the description after successful submission
+      setDescription(''); 
     } catch (error) {
       console.error('Error creating ticket:', error);
       alert('Failed to create the ticket.');

@@ -4,6 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import { Footer, Navbar } from "@/components";
 import axios from 'axios';
+import { useParams } from 'next/navigation';
+
 
 
 export interface ICar {
@@ -42,7 +44,7 @@ interface PageProps {
 
 
 
-const Page = ({ params }: PageProps) => {
+const Page = () => {
     
     const [car, setCar] = useState<ICar | null>(null);
     const [reviews, setReviews] = useState<IReview[]>([]);
@@ -54,7 +56,9 @@ const Page = ({ params }: PageProps) => {
     const [userId, setUserId] = useState<string | null>(null);
 
 
-    const { carID } = params;
+    // const { carID } = params;
+    const params = useParams();
+    const carID = params?.carID;
 
 
     useEffect(() => {
@@ -79,6 +83,7 @@ const Page = ({ params }: PageProps) => {
                     setReviews(reviewsResponse.data); // Assuming setReviews is defined
 
                 } catch (err) {
+                    console.log(err)
                     setError('Failed to fetch car details. Sorry for the inconvenience.');
                 } finally {
                     setLoading(false);

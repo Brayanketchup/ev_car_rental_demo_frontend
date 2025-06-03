@@ -1,5 +1,4 @@
 import axios from "axios";
-// import Router from "next/router";
 
 export const handleLogout = async () => {
     try {
