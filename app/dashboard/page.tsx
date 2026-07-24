@@ -1,202 +1,431 @@
-'use client'
+'use client';
 
-
-import React, { useState } from 'react';
 import Link from 'next/link';
+import {
+    useState,
+    type ChangeEvent,
+    type FormEvent,
+} from 'react';
+
 import { AdminNavbar } from '@/components';
 
+interface CarFormData {
+    manufacturer: string;
+    model: string;
+    year: string;
+    seats: string;
+    doors: string;
+    color: string;
+    mileage: string;
+    driveType: string;
+    price: string;
+    description: string;
+    status: string;
+    image: File | null;
+}
 
-const page = () => {
-    const [carData, setCarData] = useState({
-        manufacturer: '',
-        model: '',
-        year: '',
-        seats: '',
-        doors: '',
-        color: '',
-        mileage: '',
-        driveType: '',
-        price: '',
-        description: '',
-        status: 'available' // defaulting to available
-    });
-    const [showForm, setShowForm] = useState(false); // State to manage form visibility
+interface ApiResponse {
+    message?: string;
+}
 
-    const handleChange = (e) => {
-        setCarData({
-            ...carData,
-            [e.target.name]: e.target.value
-        });
+type TextFieldName = Exclude<keyof CarFormData, 'image'>;
+
+const initialCarData: CarFormData = {
+    manufacturer: '',
+    model: '',
+    year: '',
+    seats: '',
+    doors: '',
+    color: '',
+    mileage: '',
+    driveType: '',
+    price: '',
+    description: '',
+    status: 'available',
+    image: null,
+};
+
+const getErrorMessage = (error: unknown): string => {
+    return error instanceof Error
+        ? error.message
+        : 'An unknown error occurred.';
+};
+
+const Page = () => {
+    const [carData, setCarData] =
+        useState<CarFormData>(initialCarData);
+
+    const [showForm, setShowForm] = useState<boolean>(false);
+    const [submitting, setSubmitting] =
+        useState<boolean>(false);
+
+    const handleChange = (
+        event: ChangeEvent<
+            HTMLInputElement |
+            HTMLSelectElement |
+            HTMLTextAreaElement
+        >
+    ) => {
+        const name = event.target.name as TextFieldName;
+        const value = event.target.value;
+
+        setCarData((currentData) => ({
+            ...currentData,
+            [name]: value,
+        }));
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        console.log("Submitting the following data to the backend:", carData);
+    const handleChangeFile = (
+        event: ChangeEvent<HTMLInputElement>
+    ) => {
+        const file = event.target.files?.[0] ?? null;
+
+        setCarData((currentData) => ({
+            ...currentData,
+            image: file,
+        }));
+    };
+
+    const handleSubmit = async (
+        event: FormEvent<HTMLFormElement>
+    ) => {
+        event.preventDefault();
+        setSubmitting(true);
+
         const formData = new FormData();
-        for (const key in carData) {
-            if (key === 'image') {
-                formData.append(key, carData[key]);
-            } else {
-                formData.append(key, carData[key]);
-            }
+
+        formData.append(
+            'manufacturer',
+            carData.manufacturer
+        );
+        formData.append('model', carData.model);
+        formData.append('year', carData.year);
+        formData.append('seats', carData.seats);
+        formData.append('doors', carData.doors);
+        formData.append('color', carData.color);
+        formData.append('mileage', carData.mileage);
+        formData.append('driveType', carData.driveType);
+        formData.append('price', carData.price);
+        formData.append(
+            'description',
+            carData.description
+        );
+        formData.append('status', carData.status);
+
+        if (carData.image) {
+            formData.append('image', carData.image);
         }
+
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/cars/add`, {
-                method: 'POST',
-                body: formData, 
-            });
-            if (response.ok) {
-                alert('Car added successfully!');
-                setShowForm(false);
-            } else {
-                alert('Failed to add car. Please try again.');
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/cars/add`,
+                {
+                    method: 'POST',
+                    body: formData,
+                }
+            );
+
+            const result =
+                (await response.json()) as ApiResponse;
+
+            if (!response.ok) {
+                throw new Error(
+                    result.message ||
+                    'Failed to add the car.'
+                );
             }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error adding car. Please check your connection and try again.');
+
+            alert(
+                result.message ||
+                'Car added successfully!'
+            );
+
+            setCarData(initialCarData);
+            setShowForm(false);
+        } catch (error: unknown) {
+            const message = getErrorMessage(error);
+
+            console.error('Error adding car:', message);
+            alert(message);
+        } finally {
+            setSubmitting(false);
         }
     };
-
-    const handleChangeFile = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setCarData({ ...carData, image: file });
-        }
-    };
-
-
-
-
 
     return (
-
         <>
             <AdminNavbar />
 
-
-            <section className="max-w-xl mx-auto p-5 w-full min-h-[100vh] py-14">
-
-                <h1>
-                    <strong>
-                        Welcome to the admin Dashboard
-                    </strong>
+            <main className="mx-auto min-h-screen w-full max-w-xl p-5 py-14">
+                <h1 className="font-bold">
+                    Welcome to the Admin Dashboard
                 </h1>
 
-                <div className='felx flex-row space-x-4'>
-
-
-
-                    <Link href="/dashboard/inventory" passHref>
-                        <button className='bg-primary-color hover:bg-primary-color-100 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline'>
-                            Go to Inventory</button>
+                <div className="mt-4 flex flex-row flex-wrap gap-4">
+                    <Link
+                        href="/dashboard/inventory"
+                        className="rounded bg-primary-color px-4 py-2 font-bold text-white hover:bg-primary-color-100 focus:outline-none focus:shadow-outline"
+                    >
+                        Go to Inventory
                     </Link>
 
-                    <Link href="/dashboard/tickets" passHref>
-                        <button className='bg-primary-color hover:bg-primary-color-100 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline'>
-                            Tickets</button>
+                    <Link
+                        href="/dashboard/tickets"
+                        className="rounded bg-primary-color px-4 py-2 font-bold text-white hover:bg-primary-color-100 focus:outline-none focus:shadow-outline"
+                    >
+                        Tickets
                     </Link>
 
-
-                    <button onClick={() => setShowForm(!showForm)} className="bg-primary-color hover:bg-primary-color-100 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                        {showForm ? 'Close Form' : 'Add New Car'}
+                    <button
+                        type="button"
+                        onClick={() =>
+                            setShowForm((current) => !current)
+                        }
+                        className="rounded bg-primary-color px-4 py-2 font-bold text-white hover:bg-primary-color-100 focus:outline-none focus:shadow-outline"
+                    >
+                        {showForm
+                            ? 'Close Form'
+                            : 'Add New Car'}
                     </button>
-
-                    {/* <Link href="/dashboard/inventory" passHref>
-                    <button className='bg-primary-color hover:bg-primary-color-100 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline'>
-                        </button>
-                </Link> */}
-
-                    {showForm && (
-                        <form onSubmit={handleSubmit} className="bg-white shadow-md rounded px-8 pt-6 pb-8 mt-4">
-                            <h2 className="block text-gray-700 text-lg font-bold mb-2">Add New Car</h2>
-                            {/* Form fields remain the same as before, just wrapped in a conditional rendering */}
-                            <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="manufacturer">
-                                    Manufacturer:
-                                    <input className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" name="manufacturer" value={carData.manufacturer} onChange={handleChange} />
-                                </label>
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="model">
-                                    Model:
-                                    <input className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" name="model" value={carData.model} onChange={handleChange} />
-                                </label>
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="year">
-                                    Year:
-                                    <input className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="number" name="year" value={carData.year} onChange={handleChange} />
-                                </label>
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="seats">
-                                    Seats:
-                                    <input className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="number" name="seats" value={carData.seats} onChange={handleChange} />
-                                </label>
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="doors">
-                                    Doors:
-                                    <input className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="number" name="doors" value={carData.doors} onChange={handleChange} />
-                                </label>
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="color">
-                                    Color:
-                                    <input className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" name="color" value={carData.color} onChange={handleChange} />
-                                </label>
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="mileage">
-                                    Mileage:
-                                    <input className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="number" name="mileage" value={carData.mileage} onChange={handleChange} />
-                                </label>
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="driveType">
-                                    Drive Type:
-                                    <select className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" name="driveType" value={carData.driveType} onChange={handleChange}>
-                                        <option value="" disabled>Select Drive Type</option>
-                                        <option value="AWD">AWD</option>
-                                        <option value="RWD">RWD</option>
-                                        <option value="FWD">FWD</option>
-                                    </select>
-
-                                </label>
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="price">
-                                    Price:
-                                    <input className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" name="price" value={carData.price} onChange={handleChange} />
-                                </label>
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">
-                                    Description:
-                                    <textarea className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" name="description" value={carData.description} onChange={handleChange}></textarea>
-                                </label>
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="image">
-                                    Car Image:
-                                    <input
-                                        type="file"
-                                        name="image"
-                                        className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                        onChange={(e) => handleChangeFile(e)}
-                                    />
-                                </label>
-                            </div>
-                            <button type="submit" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Add Car</button>
-                        </form>
-
-
-                    )}
                 </div>
-            </section>
+
+                {showForm && (
+                    <form
+                        onSubmit={handleSubmit}
+                        className="mt-4 rounded bg-white px-8 pb-8 pt-6 shadow-md"
+                    >
+                        <h2 className="mb-2 text-lg font-bold text-gray-700">
+                            Add New Car
+                        </h2>
+
+                        <div className="mb-4">
+                            <label
+                                htmlFor="manufacturer"
+                                className="mb-2 block text-sm font-bold text-gray-700"
+                            >
+                                Manufacturer
+                            </label>
+
+                            <input
+                                id="manufacturer"
+                                type="text"
+                                name="manufacturer"
+                                value={carData.manufacturer}
+                                onChange={handleChange}
+                                required
+                                className="w-full rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none focus:shadow-outline"
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label
+                                htmlFor="model"
+                                className="mb-2 block text-sm font-bold text-gray-700"
+                            >
+                                Model
+                            </label>
+
+                            <input
+                                id="model"
+                                type="text"
+                                name="model"
+                                value={carData.model}
+                                onChange={handleChange}
+                                required
+                                className="w-full rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none focus:shadow-outline"
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label
+                                htmlFor="year"
+                                className="mb-2 block text-sm font-bold text-gray-700"
+                            >
+                                Year
+                            </label>
+
+                            <input
+                                id="year"
+                                type="number"
+                                name="year"
+                                value={carData.year}
+                                onChange={handleChange}
+                                required
+                                className="w-full rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none focus:shadow-outline"
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label
+                                htmlFor="seats"
+                                className="mb-2 block text-sm font-bold text-gray-700"
+                            >
+                                Seats
+                            </label>
+
+                            <input
+                                id="seats"
+                                type="number"
+                                name="seats"
+                                value={carData.seats}
+                                onChange={handleChange}
+                                required
+                                className="w-full rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none focus:shadow-outline"
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label
+                                htmlFor="doors"
+                                className="mb-2 block text-sm font-bold text-gray-700"
+                            >
+                                Doors
+                            </label>
+
+                            <input
+                                id="doors"
+                                type="number"
+                                name="doors"
+                                value={carData.doors}
+                                onChange={handleChange}
+                                required
+                                className="w-full rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none focus:shadow-outline"
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label
+                                htmlFor="color"
+                                className="mb-2 block text-sm font-bold text-gray-700"
+                            >
+                                Color
+                            </label>
+
+                            <input
+                                id="color"
+                                type="text"
+                                name="color"
+                                value={carData.color}
+                                onChange={handleChange}
+                                required
+                                className="w-full rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none focus:shadow-outline"
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label
+                                htmlFor="mileage"
+                                className="mb-2 block text-sm font-bold text-gray-700"
+                            >
+                                Mileage
+                            </label>
+
+                            <input
+                                id="mileage"
+                                type="number"
+                                name="mileage"
+                                value={carData.mileage}
+                                onChange={handleChange}
+                                required
+                                className="w-full rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none focus:shadow-outline"
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label
+                                htmlFor="driveType"
+                                className="mb-2 block text-sm font-bold text-gray-700"
+                            >
+                                Drive Type
+                            </label>
+
+                            <select
+                                id="driveType"
+                                name="driveType"
+                                value={carData.driveType}
+                                onChange={handleChange}
+                                required
+                                className="w-full rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none focus:shadow-outline"
+                            >
+                                <option value="" disabled>
+                                    Select Drive Type
+                                </option>
+                                <option value="AWD">AWD</option>
+                                <option value="RWD">RWD</option>
+                                <option value="FWD">FWD</option>
+                            </select>
+                        </div>
+
+                        <div className="mb-4">
+                            <label
+                                htmlFor="price"
+                                className="mb-2 block text-sm font-bold text-gray-700"
+                            >
+                                Price
+                            </label>
+
+                            <input
+                                id="price"
+                                type="number"
+                                step="0.01"
+                                name="price"
+                                value={carData.price}
+                                onChange={handleChange}
+                                required
+                                className="w-full rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none focus:shadow-outline"
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label
+                                htmlFor="description"
+                                className="mb-2 block text-sm font-bold text-gray-700"
+                            >
+                                Description
+                            </label>
+
+                            <textarea
+                                id="description"
+                                name="description"
+                                value={carData.description}
+                                onChange={handleChange}
+                                required
+                                className="w-full rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none focus:shadow-outline"
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label
+                                htmlFor="image"
+                                className="mb-2 block text-sm font-bold text-gray-700"
+                            >
+                                Car Image
+                            </label>
+
+                            <input
+                                id="image"
+                                type="file"
+                                name="image"
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={handleChangeFile}
+                                className="w-full rounded border px-3 py-2 leading-tight text-gray-700 shadow focus:outline-none focus:shadow-outline"
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={submitting}
+                            className="rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {submitting
+                                ? 'Adding Car...'
+                                : 'Add Car'}
+                        </button>
+                    </form>
+                )}
+            </main>
         </>
     );
 };
 
-export default page;
-
+export default Page;

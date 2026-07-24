@@ -8,20 +8,28 @@ import { useParams } from 'next/navigation';
 
 
 
+interface ILegacyImageData {
+    data: number[];
+}
+
 export interface ICar {
-    ID: number; // Primary key
-    manufacture: string | null; // Manufacturer of the car
-    model: string | null; // Model of the car
-    year: number | null; // Manufacturing year
-    seats: number | null; // Number of seats
-    doors: number | null; // Number of doors
-    color: string | null; // Car color
-    mileage: number | null; // Mileage of the car
-    drive_type: 'AWD' | 'RWD' | 'FWD' | null; // Drive type
-    price: number | null; // Price in decimal format
-    description: string | null; // Car description
-    image: Blob | null; // Medium blob for the image
-    status: 'booked' | 'maintenance' | 'available' | null; // Status of the car
+    ID: number;
+    manufacture: string | null;
+    model: string | null;
+    year: number | null;
+    seats: number | null;
+    doors: number | null;
+    color: string | null;
+    mileage: number | null;
+    drive_type: 'AWD' | 'RWD' | 'FWD' | null;
+    price: number | null;
+    description: string | null;
+    image: string | null;
+    status: 'booked' | 'maintenance' | 'available' | null;
+}
+
+interface ICarApiResponse extends Omit<ICar, 'image'> {
+    image: ILegacyImageData | null;
 }
 
 
@@ -70,7 +78,7 @@ const Page = () => {
             const fetchCar = async () => {
                 try {
                     setLoading(true);
-                    const response = await axios.get<ICar>(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/cars/${carID}`);
+                    const response = await axios.get<ICarApiResponse>(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/cars/${carID}`);
                     setCar({
                         ...response.data,
                         image: response.data.image
@@ -146,7 +154,6 @@ const Page = () => {
                             src={car.image}
                             alt={`${car.manufacture} ${car.model}`}
                             className=" w-full rounded-xl"
-                            onLoad={() => URL.revokeObjectURL(car.image)}
                         />
                     )}
                 </div>

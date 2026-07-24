@@ -1,17 +1,19 @@
+'use client';
 
-'use client'
-
-import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AdminNavbar } from '@/components';
 
-interface Car {
+interface LegacyImageData {
+    data: number[];
+}
+
+interface CarApiResponse {
     ID: number;
     manufacture: string;
     model: string;
-    year: string; // Year as text
+    year: string | number;
     seats: number;
     doors: number;
     color: string;
@@ -19,13 +21,31 @@ interface Car {
     drive_type: string;
     price: number;
     description: string;
-    image: Blob | null;
+    image: LegacyImageData | null;
+    status: string;
+}
+
+interface Car {
+    ID: number;
+    manufacture: string;
+    model: string;
+    year: string | number;
+    seats: number;
+    doors: number;
+    color: string;
+    mileage: number;
+    drive_type: string;
+    price: number;
+    description: string;
+    imageUrl: string | null;
     status: string;
 }
 
 interface FormValues {
+    ID?: number;
     manufacture?: string;
     model?: string;
+    year?: string | number;
     seats?: number;
     doors?: number;
     color?: string;
@@ -36,292 +56,609 @@ interface FormValues {
     status?: string;
 }
 
-const Page = () => {
+interface ApiMessageResponse {
+    message?: string;
+}
 
+const numericFields = new Set([
+    'seats',
+    'doors',
+    'mileage',
+    'price',
+]);
+
+const getErrorMessage = (error: unknown): string => {
+    return error instanceof Error
+        ? error.message
+        : 'An unknown error occurred.';
+};
+
+const Page = () => {
     const [cars, setCars] = useState<Car[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
-    const [editingCar, setEditingCar] = useState<number | null>(null); // Track the car being edited
-    const [formValues, setFormValues] = useState<FormValues>({}); // Store form data
+    const [editingCar, setEditingCar] = useState<number | null>(null);
+    const [formValues, setFormValues] = useState<FormValues>({});
 
-    const handleEditClick = (car : Car) => {
-        setEditingCar(car.ID); // Set the ID of the car being edited
-        setFormValues({ ...car }); // Populate form with car data
-    };
+    const objectUrlsRef = useRef<string[]>([]);
 
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormValues({ ...formValues, [name]: value });
-    };
+    const revokeObjectUrls = useCallback(() => {
+        objectUrlsRef.current.forEach((url) => {
+            URL.revokeObjectURL(url);
+        });
 
-    const handleFormSubmit = async (e) => {
-        e.preventDefault();
-        console.log('formValues', formValues)
-        try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/cars/update`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formValues),
-            });
+        objectUrlsRef.current = [];
+    }, []);
 
-            const result = await response.json();
-
-            if (response.ok) {
-                alert(result.message);
-                setEditingCar(null); // Close the form
-                // Optionally refresh car list here
-            } else {
-                alert(result.message || 'Failed to update car.');
-            }
-        } catch (error) {
-            console.error('Error updating car:', error);
-            alert('An error occurred while updating the car.');
+    const createImageUrl = (
+        image: LegacyImageData | null
+    ): string | null => {
+        if (!image || !Array.isArray(image.data)) {
+            return null;
         }
-    };
-    /////////////////////////////
 
-    const fetchCars = async () => {
-        setLoading(true);
-        try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/cars/getallcars`);
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
+        const imageBlob = new Blob(
+            [new Uint8Array(image.data)],
+            {
+                type: 'image/jpeg',
             }
-            const data: Car[] = await response.json();
-            const carsWithImages = data.map(car => ({
-                ...car,
-                image: car.image ? new Blob([new Uint8Array(car.image.data)], { type: 'image/jpeg' }) : null
+        );
+
+        const imageUrl = URL.createObjectURL(imageBlob);
+        objectUrlsRef.current.push(imageUrl);
+
+        return imageUrl;
+    };
+
+    const fetchCars = useCallback(async () => {
+        setLoading(true);
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/cars/getallcars`
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Failed to load cars: ${response.status} ${response.statusText}`
+                );
+            }
+
+            const data = (await response.json()) as CarApiResponse[];
+
+            revokeObjectUrls();
+
+            const carsWithImages: Car[] = data.map((car) => ({
+                ID: car.ID,
+                manufacture: car.manufacture,
+                model: car.model,
+                year: car.year,
+                seats: car.seats,
+                doors: car.doors,
+                color: car.color,
+                mileage: car.mileage,
+                drive_type: car.drive_type,
+                price: car.price,
+                description: car.description,
+                imageUrl: createImageUrl(car.image),
+                status: car.status,
             }));
+
             setCars(carsWithImages);
-        } catch (error) {
-            console.error('Failed to fetch cars:', error);
-            alert('Failed to fetch cars. Please try again later.');
+        } catch (error: unknown) {
+            console.error(
+                'Failed to fetch cars:',
+                getErrorMessage(error)
+            );
+
+            alert(
+                'Failed to fetch cars. Please try again later.'
+            );
         } finally {
             setLoading(false);
         }
-    };
+    }, [revokeObjectUrls]);
 
     useEffect(() => {
-        fetchCars();
-    }, []);
+        void fetchCars();
 
+        return () => {
+            revokeObjectUrls();
+        };
+    }, [fetchCars, revokeObjectUrls]);
 
-    const setCarToMaintenance = async (carID: number): Promise<any> => {
+    const handleEditClick = (car: Car) => {
+        setEditingCar(car.ID);
+
+        setFormValues({
+            ID: car.ID,
+            manufacture: car.manufacture,
+            model: car.model,
+            year: car.year,
+            seats: car.seats,
+            doors: car.doors,
+            color: car.color,
+            mileage: car.mileage,
+            drive_type: car.drive_type,
+            price: car.price,
+            description: car.description,
+            status: car.status,
+        });
+    };
+
+    const handleInputChange = (
+        event: React.ChangeEvent<
+            HTMLInputElement | HTMLTextAreaElement
+        >
+    ) => {
+        const { name, value } = event.target;
+
+        const normalizedValue =
+            numericFields.has(name) && value !== ''
+                ? Number(value)
+                : value;
+
+        setFormValues((currentValues) => ({
+            ...currentValues,
+            [name]: normalizedValue,
+        }));
+    };
+
+    const handleFormSubmit = async (
+        event: React.FormEvent<HTMLFormElement>
+    ) => {
+        event.preventDefault();
+
+        if (!formValues.ID) {
+            alert('Cannot update the car because its ID is missing.');
+            return;
+        }
+
         try {
-            if (!carID) {
-                throw new Error('Car ID is required');
-            }
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/cars/update`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formValues),
+                }
+            );
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/car/setmaintenance/${carID}`, {
-                method: 'POST', 
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
+            const result =
+                (await response.json()) as ApiMessageResponse;
 
             if (!response.ok) {
-                // Handle HTTP errors
-                const errorData = await response.json();
-                throw new Error(`Failed to update car status: ${errorData.message || response.statusText}`);
+                throw new Error(
+                    result.message || 'Failed to update car.'
+                );
             }
 
-            const responseData = await response.json();
-            console.log('Car status updated successfully:', responseData);
-            return responseData;
-        } catch (error: any) {
-            console.error('Error updating car status:', error.message);
-            throw error;
+            alert(result.message || 'Car updated successfully.');
+
+            setEditingCar(null);
+            setFormValues({});
+
+            await fetchCars();
+        } catch (error: unknown) {
+            console.error(
+                'Error updating car:',
+                getErrorMessage(error)
+            );
+
+            alert(getErrorMessage(error));
+        }
+    };
+
+    const setCarToMaintenance = async (
+        carID: number
+    ): Promise<void> => {
+        try {
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/car/setmaintenance/${carID}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            const result =
+                (await response.json()) as ApiMessageResponse;
+
+            if (!response.ok) {
+                throw new Error(
+                    result.message ||
+                        'Failed to update the car status.'
+                );
+            }
+
+            alert(
+                result.message ||
+                    'Car moved to maintenance successfully.'
+            );
+
+            await fetchCars();
+        } catch (error: unknown) {
+            console.error(
+                'Error updating car status:',
+                getErrorMessage(error)
+            );
+
+            alert(getErrorMessage(error));
         }
     };
 
     return (
         <>
             <AdminNavbar />
-            <div className="container mx-auto mt-10 p-5 py-16">
-                <h1 className="text-2xl font-extrabold w-full text-center">Inventory</h1>
+
+            <main className="container mx-auto mt-10 p-5 py-16">
+                <h1 className="w-full text-center text-2xl font-extrabold">
+                    Inventory
+                </h1>
+
+                {loading && (
+                    <p className="mt-6 text-center">
+                        Loading inventory...
+                    </p>
+                )}
+
+                {!loading && cars.length === 0 && (
+                    <p className="mt-6 text-center">
+                        No cars available.
+                    </p>
+                )}
+
                 <div className="flex flex-col space-y-4">
-                    {cars.length > 0 ? (
-                        cars.map((car) => (
-                            <div key={car.ID} className="car bg-white rounded-lg p-4">
-                                <div className="w-fit">
-                                    <h2 className="text-xl font-bold">
-                                        {car.manufacture} {car.model} ({car.year})
-                                    </h2>
-                                    <div className="content-none h-[2px] w-full bg-orange-300" />
-                                </div>
-                                <ul className="flex flex-col space-y-1">
-                                    <li><p><strong>Seats:</strong> {car.seats}</p></li>
-                                    <li><p><strong>Doors:</strong> {car.doors}</p></li>
-                                    <li><p><strong>Color:</strong> {car.color}</p></li>
-                                    <li><p><strong>Mileage:</strong> {car.mileage} miles</p></li>
-                                    <li><p><strong>Drive Type:</strong> {car.drive_type}</p></li>
-                                    <li><p><strong>Price:</strong> {car.price}</p></li>
-                                    <li><p><strong>Description:</strong> {car.description}</p></li>
-                                    <li><p><strong>Status:</strong> {car.status}</p></li>
-                                </ul>
-                                {car.image && (
-                                    <img
-                                        src={URL.createObjectURL(car.image)}
+                    {cars.map((car) => (
+                        <article
+                            key={car.ID}
+                            className="car rounded-lg bg-white p-4"
+                        >
+                            <div className="w-fit">
+                                <h2 className="text-xl font-bold">
+                                    {car.manufacture} {car.model}{' '}
+                                    ({car.year})
+                                </h2>
+
+                                <div className="h-[2px] w-full bg-orange-300" />
+                            </div>
+
+                            <ul className="flex flex-col space-y-1">
+                                <li>
+                                    <strong>Seats:</strong>{' '}
+                                    {car.seats}
+                                </li>
+
+                                <li>
+                                    <strong>Doors:</strong>{' '}
+                                    {car.doors}
+                                </li>
+
+                                <li>
+                                    <strong>Color:</strong>{' '}
+                                    {car.color}
+                                </li>
+
+                                <li>
+                                    <strong>Mileage:</strong>{' '}
+                                    {car.mileage} miles
+                                </li>
+
+                                <li>
+                                    <strong>Drive Type:</strong>{' '}
+                                    {car.drive_type}
+                                </li>
+
+                                <li>
+                                    <strong>Price:</strong>{' '}
+                                    {car.price}
+                                </li>
+
+                                <li>
+                                    <strong>Description:</strong>{' '}
+                                    {car.description}
+                                </li>
+
+                                <li>
+                                    <strong>Status:</strong>{' '}
+                                    {car.status}
+                                </li>
+                            </ul>
+
+                            {car.imageUrl && (
+                                <div className="relative mt-4 h-72 w-full max-w-2xl overflow-hidden rounded-md">
+                                    <Image
+                                        src={car.imageUrl}
                                         alt={`${car.manufacture} ${car.model}`}
-                                        className="rounded-md"
-                                        onLoad={() => URL.revokeObjectURL(URL.createObjectURL(car.image))}
+                                        fill
+                                        unoptimized
+                                        className="object-cover"
                                     />
-                                )}
+                                </div>
+                            )}
 
+                            {car.status === 'available' && (
+                                <div className="flex w-full flex-row justify-end space-x-2 pt-2">
+                                    <button
+                                        type="button"
+                                        className="rounded-md bg-primary-color px-2 py-1 text-white"
+                                        onClick={() =>
+                                            handleEditClick(car)
+                                        }
+                                    >
+                                        Edit
+                                    </button>
 
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            void setCarToMaintenance(
+                                                car.ID
+                                            )
+                                        }
+                                        className="rounded-md bg-red-600 px-2 py-1 text-white"
+                                    >
+                                        Set to Maintenance
+                                    </button>
+                                </div>
+                            )}
 
-                                {car.status == 'available' && (
-
-
-                                    <div className="flex flex-row space-x-2 w-full justify-end pt-2">
-                                        <button
-                                            className="px-2 py-1 text-white rounded-md bg-primary-color"
-                                            onClick={() => handleEditClick(car)}
+                            {editingCar === car.ID && (
+                                <form
+                                    className="mt-4 space-y-2"
+                                    onSubmit={handleFormSubmit}
+                                >
+                                    <div>
+                                        <label
+                                            htmlFor={`manufacture-${car.ID}`}
+                                            className="block text-sm font-medium"
                                         >
-                                            Edit
-                                        </button>
-                                        {/* <button className="px-2 py-1 text-white rounded-md bg-red-600">Unlist</button> */}
-                                        <button
-                                            onClick={() => setCarToMaintenance(car.ID)}
-                                            className="px-2 py-1 text-white rounded-md bg-red-600"
-                                        >
-                                            Set to Maintenance
-                                        </button>
-                                        {/* <button onClick={setCarToMaintenance(car.ID)} className="px-2 py-1 text-white rounded-md bg-red-600">Set to Maintance</button> */}
+                                            Manufacturer
+                                        </label>
+
+                                        <input
+                                            id={`manufacture-${car.ID}`}
+                                            type="text"
+                                            name="manufacture"
+                                            value={
+                                                formValues.manufacture ??
+                                                ''
+                                            }
+                                            onChange={
+                                                handleInputChange
+                                            }
+                                            className="w-full rounded border p-2"
+                                        />
                                     </div>
 
-                                )}
-
-
-                                {editingCar === car.ID && (
-                                   
-                                    <form className="mt-4 space-y-2" onSubmit={handleFormSubmit}>
-                                        <div>
-                                            <label className="block text-sm font-medium">Manufacture</label>
-                                            <input
-                                                type="text"
-                                                name="manufacture"
-                                                value={formValues.manufacture || ''}
-                                                onChange={handleInputChange}
-                                                className="border p-2 w-full rounded"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium">Model</label>
-                                            <input
-                                                type="text"
-                                                name="model"
-                                                value={formValues.model || ''}
-                                                onChange={handleInputChange}
-                                                className="border p-2 w-full rounded"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium">Seats</label>
-                                            <input
-                                                type="number"
-                                                name="seats"
-                                                value={formValues.seats || ''}
-                                                onChange={handleInputChange}
-                                                className="border p-2 w-full rounded"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium">Doors</label>
-                                            <input
-                                                type="number"
-                                                name="doors"
-                                                value={formValues.doors || ''}
-                                                onChange={handleInputChange}
-                                                className="border p-2 w-full rounded"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium">Color</label>
-                                            <input
-                                                type="text"
-                                                name="color"
-                                                value={formValues.color || ''}
-                                                onChange={handleInputChange}
-                                                className="border p-2 w-full rounded"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium">Mileage</label>
-                                            <input
-                                                type="number"
-                                                step="0.1"
-                                                name="mileage"
-                                                value={formValues.mileage || ''}
-                                                onChange={handleInputChange}
-                                                className="border p-2 w-full rounded"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium">Drive Type</label>
-                                            <input
-                                                type="text"
-                                                name="drive_type"
-                                                value={formValues.drive_type || ''}
-                                                onChange={handleInputChange}
-                                                className="border p-2 w-full rounded"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium">Price</label>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                name="price"
-                                                value={formValues.price || ''}
-                                                onChange={handleInputChange}
-                                                className="border p-2 w-full rounded"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium">Description</label>
-                                            <textarea
-                                                name="description"
-                                                value={formValues.description || ''}
-                                                onChange={handleInputChange}
-                                                className="border p-2 w-full rounded"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium">Status</label>
-                                            <input
-                                                type="text"
-                                                name="status"
-                                                value={formValues.status || ''}
-                                                onChange={handleInputChange}
-                                                className="border p-2 w-full rounded"
-                                            />
-                                        </div>
-                                        <button
-                                            type="submit"
-                                            className="px-4 py-2 bg-blue-600 text-white rounded"
+                                    <div>
+                                        <label
+                                            htmlFor={`model-${car.ID}`}
+                                            className="block text-sm font-medium"
                                         >
-                                            Save
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setEditingCar(null)}
-                                            className="ml-2 px-4 py-2 bg-gray-400 text-white rounded"
+                                            Model
+                                        </label>
+
+                                        <input
+                                            id={`model-${car.ID}`}
+                                            type="text"
+                                            name="model"
+                                            value={
+                                                formValues.model ?? ''
+                                            }
+                                            onChange={
+                                                handleInputChange
+                                            }
+                                            className="w-full rounded border p-2"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            htmlFor={`seats-${car.ID}`}
+                                            className="block text-sm font-medium"
                                         >
-                                            Cancel
-                                        </button>
-                                    </form>
+                                            Seats
+                                        </label>
 
-                                )}
+                                        <input
+                                            id={`seats-${car.ID}`}
+                                            type="number"
+                                            name="seats"
+                                            value={
+                                                formValues.seats ?? ''
+                                            }
+                                            onChange={
+                                                handleInputChange
+                                            }
+                                            className="w-full rounded border p-2"
+                                        />
+                                    </div>
 
-                            </div>
-                        ))
-                    ) : (
-                        <p>No cars available.</p>
-                    )}
+                                    <div>
+                                        <label
+                                            htmlFor={`doors-${car.ID}`}
+                                            className="block text-sm font-medium"
+                                        >
+                                            Doors
+                                        </label>
+
+                                        <input
+                                            id={`doors-${car.ID}`}
+                                            type="number"
+                                            name="doors"
+                                            value={
+                                                formValues.doors ?? ''
+                                            }
+                                            onChange={
+                                                handleInputChange
+                                            }
+                                            className="w-full rounded border p-2"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            htmlFor={`color-${car.ID}`}
+                                            className="block text-sm font-medium"
+                                        >
+                                            Color
+                                        </label>
+
+                                        <input
+                                            id={`color-${car.ID}`}
+                                            type="text"
+                                            name="color"
+                                            value={
+                                                formValues.color ?? ''
+                                            }
+                                            onChange={
+                                                handleInputChange
+                                            }
+                                            className="w-full rounded border p-2"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            htmlFor={`mileage-${car.ID}`}
+                                            className="block text-sm font-medium"
+                                        >
+                                            Mileage
+                                        </label>
+
+                                        <input
+                                            id={`mileage-${car.ID}`}
+                                            type="number"
+                                            step="0.1"
+                                            name="mileage"
+                                            value={
+                                                formValues.mileage ??
+                                                ''
+                                            }
+                                            onChange={
+                                                handleInputChange
+                                            }
+                                            className="w-full rounded border p-2"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            htmlFor={`drive-type-${car.ID}`}
+                                            className="block text-sm font-medium"
+                                        >
+                                            Drive Type
+                                        </label>
+
+                                        <input
+                                            id={`drive-type-${car.ID}`}
+                                            type="text"
+                                            name="drive_type"
+                                            value={
+                                                formValues.drive_type ??
+                                                ''
+                                            }
+                                            onChange={
+                                                handleInputChange
+                                            }
+                                            className="w-full rounded border p-2"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            htmlFor={`price-${car.ID}`}
+                                            className="block text-sm font-medium"
+                                        >
+                                            Price
+                                        </label>
+
+                                        <input
+                                            id={`price-${car.ID}`}
+                                            type="number"
+                                            step="0.01"
+                                            name="price"
+                                            value={
+                                                formValues.price ?? ''
+                                            }
+                                            onChange={
+                                                handleInputChange
+                                            }
+                                            className="w-full rounded border p-2"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            htmlFor={`description-${car.ID}`}
+                                            className="block text-sm font-medium"
+                                        >
+                                            Description
+                                        </label>
+
+                                        <textarea
+                                            id={`description-${car.ID}`}
+                                            name="description"
+                                            value={
+                                                formValues.description ??
+                                                ''
+                                            }
+                                            onChange={
+                                                handleInputChange
+                                            }
+                                            className="w-full rounded border p-2"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            htmlFor={`status-${car.ID}`}
+                                            className="block text-sm font-medium"
+                                        >
+                                            Status
+                                        </label>
+
+                                        <input
+                                            id={`status-${car.ID}`}
+                                            type="text"
+                                            name="status"
+                                            value={
+                                                formValues.status ?? ''
+                                            }
+                                            onChange={
+                                                handleInputChange
+                                            }
+                                            className="w-full rounded border p-2"
+                                        />
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        className="rounded bg-blue-600 px-4 py-2 text-white"
+                                    >
+                                        Save
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEditingCar(null);
+                                            setFormValues({});
+                                        }}
+                                        className="ml-2 rounded bg-gray-400 px-4 py-2 text-white"
+                                    >
+                                        Cancel
+                                    </button>
+                                </form>
+                            )}
+                        </article>
+                    ))}
                 </div>
-            </div>
+            </main>
         </>
     );
 };

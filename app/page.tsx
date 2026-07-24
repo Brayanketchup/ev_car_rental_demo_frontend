@@ -1,143 +1,372 @@
-
-
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Navbar, Footer, Hero } from '@/components';  
 import axios from 'axios';
-import { useRouter } from 'next/navigation';
-import { manufacturersData } from '@/constants';
 import Link from 'next/link';
+import {
+    useEffect,
+    useState,
+    type ChangeEvent,
+} from 'react';
+
+import { Hero, Navbar } from '@/components';
+import { manufacturersData } from '@/constants';
+
+interface LegacyImageData {
+    data: number[];
+}
+
+interface CarSearchResult {
+    ID: number;
+    manufacture: string;
+    model: string;
+    year: string | number;
+    price: number;
+    description?: string | null;
+    image: LegacyImageData | null;
+}
+
+interface SearchParams {
+    manufacture: string;
+    model: string;
+    year: string;
+    price: string;
+}
+
+type SearchFieldName = keyof SearchParams;
+
+const manufacturerModels =
+    manufacturersData as Record<string, string[]>;
+
+const createLegacyImageDataUrl = (
+    image: LegacyImageData | null
+): string | null => {
+    if (!image || !Array.isArray(image.data)) {
+        return null;
+    }
+
+    const bytes = new Uint8Array(image.data);
+
+    let binaryString = '';
+
+    bytes.forEach((byte) => {
+        binaryString += String.fromCharCode(byte);
+    });
+
+    return `data:image/jpeg;base64,${window.btoa(binaryString)}`;
+};
 
 export default function Home() {
-  const [username, setUsername] = useState(null);
-  const [carResults, setCarResults] = useState([]);
-  const [searchParams, setSearchParams] = useState({
-    manufacture: '',
-    model: '',
-    year: '',
-    price: ''
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [models, setModels] = useState([]);
+    const [carResults, setCarResults] = useState<
+        CarSearchResult[]
+    >([]);
 
-  const router = useRouter();
+    const [searchParams, setSearchParams] =
+        useState<SearchParams>({
+            manufacture: '',
+            model: '',
+            year: '',
+            price: '',
+        });
 
-  useEffect(() => {
-    const storedUsername = localStorage.getItem('username');
-    if (storedUsername) {
-      setUsername(storedUsername);
-    }
-  }, []);
+    const [isLoading, setIsLoading] =
+        useState<boolean>(false);
 
-  useEffect(() => {
-    setModels(manufacturersData[searchParams.manufacture] || []);
-  }, [searchParams.manufacture]);
+    const [error, setError] = useState<string>('');
+    const [models, setModels] = useState<string[]>([]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setSearchParams(prevParams => ({ ...prevParams, [name]: value }));
-  };
+    useEffect(() => {
+        const selectedModels =
+            manufacturerModels[
+                searchParams.manufacture
+            ] ?? [];
 
-  const handleSearch = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const { data } = await axios.get(`${process.env.API_BASE_URL}/api/cars/search`, {
-        params: searchParams
-      });
-      setCarResults(data);
-    } catch (error) {
-      setError('Failed to fetch cars. Please try again later.');
-      console.error('Failed to fetch cars:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        setModels(selectedModels);
 
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-between">
-      <Navbar />
-      <Hero />
-      
-      <section id='Cars' className="container mx-auto p-24">
-        {/* <h1 className="text-4xl font-extrabold">Welcome to CarRental, {username || 'Guest'}</h1> */}
-        <h1 className="text-4xl font-extrabold text-center">Car Catalogue</h1>
-        <div className="search-form max-w-md mx-auto my-8">
-          <div className="grid grid-cols-2 gap-4">
-            <select
-              className="form-select p-2 border border-gray-300 rounded-md"
-              name="manufacture"
-              value={searchParams.manufacture}
-              onChange={handleInputChange}
+        setSearchParams((currentParams) => {
+            if (
+                !currentParams.model ||
+                selectedModels.includes(
+                    currentParams.model
+                )
+            ) {
+                return currentParams;
+            }
+
+            return {
+                ...currentParams,
+                model: '',
+            };
+        });
+    }, [searchParams.manufacture]);
+
+    const handleInputChange = (
+        event: ChangeEvent<
+            HTMLInputElement | HTMLSelectElement
+        >
+    ) => {
+        const name =
+            event.target.name as SearchFieldName;
+        const value = event.target.value;
+
+        setSearchParams((currentParams) => ({
+            ...currentParams,
+            [name]: value,
+        }));
+    };
+
+    const handleSearch = async (): Promise<void> => {
+        const apiBaseUrl =
+            process.env.NEXT_PUBLIC_API_BASE_URL;
+
+        if (!apiBaseUrl) {
+            setError(
+                'The API address is not configured.'
+            );
+            return;
+        }
+
+        setIsLoading(true);
+        setError('');
+
+        try {
+            const response =
+                await axios.get<CarSearchResult[]>(
+                    `${apiBaseUrl}/api/cars/search`,
+                    {
+                        params: searchParams,
+                    }
+                );
+
+            setCarResults(response.data);
+        } catch (requestError: unknown) {
+            console.error(
+                'Failed to fetch cars:',
+                requestError
+            );
+
+            setError(
+                'Failed to fetch cars. Please try again later.'
+            );
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <main className="flex min-h-screen flex-col items-center justify-between">
+            <Navbar />
+            <Hero />
+
+            <section
+                id="Cars"
+                className="container mx-auto p-6 md:p-12 lg:p-24"
             >
-              <option value="">Select Manufacturer</option>
-              {Object.keys(manufacturersData).map(manufacture => (
-                <option key={manufacture} value={manufacture}>{manufacture}</option>
-              ))}
-            </select>
-            <select
-              className="form-select p-2 border border-gray-300 rounded-md"
-              name="model"
-              value={searchParams.model}
-              onChange={handleInputChange}
-              disabled={!searchParams.manufacture}
-            >
-              <option value="">Select Model</option>
-              {models.map(model => (
-                <option key={model} value={model}>{model}</option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            
-            <input
-              type="text"
-              className="form-input p-2 border border-gray-300 rounded-md"
-              name="price"
-              value={searchParams.price}
-              onChange={handleInputChange}
-              placeholder="Max Price"
-            />
-          </div>
-          <div className="mt-4">
-            <button
-              onClick={handleSearch}
-              disabled={isLoading}
-              className="w-full p-3 bg-primary-color text-white rounded-md hover:bg-primary-color-100 disabled:bg-gray-300"
-            >
-              Search
-            </button>
-          </div>
-        </div>
-        {error && <p className="text-red-500">{error}</p>}
-        {isLoading ? <p>Loading...</p> : (
-          <div className="cars-list space-y-4 mt-8">
-            {carResults.length > 0 ? carResults.map(car => (
-              <div key={car.ID} className="car-details bg-gray-100 p-6 rounded-lg flex flex-col space-x-2">
-                <h2 className="text-2xl font-bold">{car.manufacture} {car.model} - {car.year}</h2>
-                {/* <p>{car.description}</p> */}
-                <p>{car.price} / day</p>
-                {car.image && (
-                  <img
-                    src={`data:image/jpeg;base64,${btoa(
-                      new Uint8Array(car.image.data)
-                        .reduce((data, byte) => data + String.fromCharCode(byte), '')
-                    )}`}
-                    alt={`${car.manufacture} ${car.model}`}
-                    className="w-full h-[550px] object-cover rounded-md"
-                  />
+                <h1 className="text-center text-4xl font-extrabold">
+                    Car Catalogue
+                </h1>
+
+                <div className="search-form mx-auto my-8 max-w-md">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label
+                                htmlFor="manufacture"
+                                className="mb-1 block text-sm font-medium"
+                            >
+                                Manufacturer
+                            </label>
+
+                            <select
+                                id="manufacture"
+                                className="form-select w-full rounded-md border border-gray-300 p-2"
+                                name="manufacture"
+                                value={
+                                    searchParams.manufacture
+                                }
+                                onChange={
+                                    handleInputChange
+                                }
+                            >
+                                <option value="">
+                                    Select Manufacturer
+                                </option>
+
+                                {Object.keys(
+                                    manufacturerModels
+                                ).map(
+                                    (manufacturer) => (
+                                        <option
+                                            key={
+                                                manufacturer
+                                            }
+                                            value={
+                                                manufacturer
+                                            }
+                                        >
+                                            {
+                                                manufacturer
+                                            }
+                                        </option>
+                                    )
+                                )}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="model"
+                                className="mb-1 block text-sm font-medium"
+                            >
+                                Model
+                            </label>
+
+                            <select
+                                id="model"
+                                className="form-select w-full rounded-md border border-gray-300 p-2"
+                                name="model"
+                                value={
+                                    searchParams.model
+                                }
+                                onChange={
+                                    handleInputChange
+                                }
+                                disabled={
+                                    !searchParams.manufacture
+                                }
+                            >
+                                <option value="">
+                                    Select Model
+                                </option>
+
+                                {models.map((model) => (
+                                    <option
+                                        key={model}
+                                        value={model}
+                                    >
+                                        {model}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label
+                                htmlFor="year"
+                                className="mb-1 block text-sm font-medium"
+                            >
+                                Year
+                            </label>
+
+                            <input
+                                id="year"
+                                type="number"
+                                className="form-input w-full rounded-md border border-gray-300 p-2"
+                                name="year"
+                                value={searchParams.year}
+                                onChange={
+                                    handleInputChange
+                                }
+                                placeholder="Year"
+                                min="1900"
+                            />
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="price"
+                                className="mb-1 block text-sm font-medium"
+                            >
+                                Maximum Price
+                            </label>
+
+                            <input
+                                id="price"
+                                type="number"
+                                className="form-input w-full rounded-md border border-gray-300 p-2"
+                                name="price"
+                                value={searchParams.price}
+                                onChange={
+                                    handleInputChange
+                                }
+                                placeholder="Max price"
+                                min="0"
+                                step="0.01"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="mt-4">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                void handleSearch()
+                            }
+                            disabled={isLoading}
+                            className="w-full rounded-md bg-primary-color p-3 text-white hover:bg-primary-color-100 disabled:cursor-not-allowed disabled:bg-gray-300"
+                        >
+                            {isLoading
+                                ? 'Searching...'
+                                : 'Search'}
+                        </button>
+                    </div>
+                </div>
+
+                {error && (
+                    <p className="text-center text-red-500">
+                        {error}
+                    </p>
                 )}
-                <Link href={`/carinfo/${car.ID}`} className="mt-4 w-fit text-white bg-primary-color hover:bg-primary-color-100 rounded-md p-2">
-                  Show More
-                </Link>
-              </div>
-            )) : <p></p>}
-          </div>
-        )}
-      </section>
-      {/* <Footer /> */}
-    </main>
-  );
+
+                {!isLoading &&
+                    !error &&
+                    carResults.length === 0 && (
+                        <p className="text-center text-gray-600">
+                            Search the catalogue to find
+                            available cars.
+                        </p>
+                    )}
+
+                <div className="cars-list mt-8 space-y-4">
+                    {carResults.map((car) => {
+                        const imageUrl =
+                            createLegacyImageDataUrl(
+                                car.image
+                            );
+
+                        return (
+                            <article
+                                key={car.ID}
+                                className="car-details flex flex-col rounded-lg bg-gray-100 p-6"
+                            >
+                                <h2 className="text-2xl font-bold">
+                                    {car.manufacture}{' '}
+                                    {car.model} - {car.year}
+                                </h2>
+
+                                <p>
+                                    ${car.price} / day
+                                </p>
+
+                                {imageUrl && (
+                                    <img
+                                        src={imageUrl}
+                                        alt={`${car.manufacture} ${car.model}`}
+                                        className="mt-4 h-[550px] w-full rounded-md object-cover"
+                                    />
+                                )}
+
+                                <Link
+                                    href={`/carinfo/${car.ID}`}
+                                    className="mt-4 w-fit rounded-md bg-primary-color p-2 text-white hover:bg-primary-color-100"
+                                >
+                                    Show More
+                                </Link>
+                            </article>
+                        );
+                    })}
+                </div>
+            </section>
+        </main>
+    );
 }
