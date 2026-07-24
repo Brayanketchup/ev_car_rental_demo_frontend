@@ -1,35 +1,16 @@
 {
-  "name": "rental_car_demo",
+  "name": "ev-rental-platform",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.34.5",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "@headlessui/react": "^1.7.18",
-    "axios": "^1.7.7",
-    "dotenv": "^16.5.0",
-    "js-cookie": "^3.0.5",
-    "leaflet": "^1.9.4",
-    "leaflet-control-geocoder": "^2.4.0",
-    "leaflet-routing-machine": "^3.2.12",
-    "next": "^15.0.4",
-    "react": "^18",
-    "react-dom": "^18",
-    "react-leaflet": "^4.2.1"
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test"
   },
   "devDependencies": {
-    "@types/leaflet": "^1.9.14",
-    "@types/leaflet-routing-machine": "^3.2.9",
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "autoprefixer": "^10.0.1",
-    "postcss": "^8",
-    "tailwindcss": "^3.3.0",
-    "typescript": "^5"
+    "turbo": "^2.10.6"
   }
 }
